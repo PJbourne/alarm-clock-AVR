@@ -1,13 +1,29 @@
 #include <TM1638.h>
+#include "pitches.h"
 //#include <avr/sleep.h>
 
 TM1638 tm (8, 7, 4, true, 0);
+//TONES SEQUENCE FOR ALARM
+int melody[] = {
+    //jingle bells
+  NOTE_E6, NOTE_E6, NOTE_E6,NOTE_E6, NOTE_E6, NOTE_E6, NOTE_E6, NOTE_G6, NOTE_C6,NOTE_D6, NOTE_E6,
+  NOTE_F6, NOTE_F6, NOTE_F6,NOTE_F6, NOTE_F6, NOTE_E6,NOTE_E6, NOTE_E6,NOTE_E6, NOTE_D6, NOTE_D6,NOTE_E6, NOTE_D6, NOTE_G6,
+  NOTE_E6, NOTE_E6, NOTE_E6,NOTE_E6, NOTE_E6, NOTE_E6, NOTE_E6, NOTE_G6, NOTE_C6,NOTE_D6, NOTE_E6,
+  NOTE_F6, NOTE_F6, NOTE_F6,NOTE_F6, NOTE_F6, NOTE_E6,NOTE_E6, NOTE_E6,NOTE_G6, NOTE_G6, NOTE_F6,NOTE_D6, NOTE_C6
+  };
+  //TONES DURATION FOR ALARM
+float noteDurations[] = {
+  2,2,1,2,2,1,2,2,2,2,0.5,
+  2,2,2,2,2,2,2,2,2,2,2,2,1,1,
+  2,2,1,2,2,1,2,2,2,2,0.5,
+  2,2,2,2,2,2,2,2,2,2,2,2,0.5
+};
 
 unsigned long waitcheckTime=0;
 unsigned long waitcheckButtons=0;
 
 unsigned long intervalcheckTime=125;
-unsigned long intervalcheckButtons=50;
+unsigned long intervalcheckButtons=20;
 
 unsigned long gapSecond=0;
   unsigned long alarmTime=21600;
@@ -18,23 +34,25 @@ boolean dots=0;
 
 boolean moduleOff=0;
 
-void setup(){  
- //   pinMode(5, OUTPUT);
-    pinMode(LED_BUILTIN, OUTPUT);
+void setup(){
   waitcheckTime = intervalcheckTime;
   waitcheckButtons = intervalcheckButtons;
 }
-
 void loop(){
-
   checkTime();
   checkButtons();
-   if((millis() - millisLedOn) == 10){
-   digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level    
-   }else if((millis() - millisLedOff) == 990){
-  digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
-   }
-
+    if(totalSecond >= alarmTime && totalSecond <= (alarmTime + 30)){
+      for (int thisNote = 0; thisNote < 49; thisNote++) {
+    int noteDuration = 50 / noteDurations[thisNote];
+    tone(6, melody[thisNote], noteDuration);
+    // to distinguish the notes, set a minimum time between them.
+    int pauseBetweenNotes = noteDuration * 1;
+    delay(pauseBetweenNotes);
+    // stop the tone playing:
+    noTone(6);
+    checkButtons();
+      }
+    }
 }
 
 void checkTime(){
@@ -68,12 +86,8 @@ void drawToModule(){
     totalSecond = gapSecond + elapSecond;
     byte pos = 1;
     tm.setDisplayToString(formatTime(totalSecond),(dots * 80),pos);
- //     if(totalSecond >= alarmTime && totalSecond <= (alarmTime + 60)){
- //     digitalWrite(5, HIGH); // sets the digital pin 5 on
- // }
+ }
 }
-}
-
 void buttonEvent(byte inp){
     byte pos = 1;
   tm.setLED((inp % 1 ) + 1,inp);
@@ -111,41 +125,42 @@ case 0:
     }
     break;
   case 4:
-    gapSecond -= second(gapSecond + round(millis() / 100)); 
-    break;
-  case 7:
- //  digitalWrite(5, LOW);  // sets the digital pin 13 off
-   moduleOff = !moduleOff;
-   if(moduleOff){
-    tm.clearDisplay();    
-//    tm.setDisplayToString(formatTime(alarmTime),(dots * 80),pos);
-    }
-    break;
-  case 6:
-      if (minute(gapSecond) != 59){
+    if (minute(gapSecond) != 59){
       alarmTime += 60;
     }
     else{
       alarmTime -= 3540;
     }
-        tm.clearDisplay();    
+    tm.clearDisplay();
     tm.setDisplayToString(formatTime(alarmTime),(dots * 80),pos);
-    break;
-     case 5:     if (minute(alarmTime) != 0){
+    break;     
+    case 5:     if (minute(alarmTime) != 0){
       alarmTime -= 60;
     }
     else{
       alarmTime += 3540;
-    
-        tm.clearDisplay();    
+    }
+    tm.clearDisplay();    
     tm.setDisplayToString(formatTime(alarmTime),(dots * 80),pos);
+  break;
+  case 6:
+      if(totalSecond >= alarmTime && totalSecond <= (alarmTime + 30)){
+      alarmTime = alarmTime - 30;
+      noTone(6);
+      }
+  break;
+  case 7:
+   moduleOff = !moduleOff;
+   if(moduleOff){
+    tm.clearDisplay();    
+    tm.setDisplayToString(formatTime(alarmTime),(dots * 80),pos);
+    }
     break;
-  }
   }
 }
 
 String formatTime(unsigned long inp){
-  return hourStr(inp) + minuteStr(inp); // + secondStr(inp)
+  return hourStr(inp) + minuteStr(inp) + secondStr(inp);
 }
 
 String formatNumber(String inp){
@@ -165,9 +180,9 @@ String minuteStr(unsigned long inp){
   return  formatNumber(String(minute(inp)));
 }
 
-//String secondStr(unsigned long inp){
-//  return  formatNumber(String(second(inp)));
-//}
+String secondStr(unsigned long inp){
+  return  formatNumber(String(second(inp)));
+}
 
 byte hour(unsigned long inp){
   return  byte((inp/3600) % 24);
